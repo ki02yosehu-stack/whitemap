@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">白紙の地図</string>
+    <string name="notification_channel_name">道の記録</string>
+    <string name="notification_title">道を記録しています</string>
+    <string name="notification_text">歩いたところが地図になります</string>
+    <string name="notification_stop">停止</string>
+</resources>
