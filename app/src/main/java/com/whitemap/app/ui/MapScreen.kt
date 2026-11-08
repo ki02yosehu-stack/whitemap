@@ -158,7 +158,7 @@ fun MapScreen(vm: MapViewModel = viewModel()) {
         val hint = when {
             !hasPermission -> "位置情報を許可すると、\n地図づくりを始められます。"
             projection == null -> "現在地をさがしています…"
-            roads.segments.isEmpty() && !isRecording -> "まだ、なにもない。\n歩いた道が、あなたの地図になる。"
+            roads.isEmpty && !isRecording -> "まだ、なにもない。\n歩いた道が、あなたの地図になる。"
             else -> null
         }
         if (hint != null) {
@@ -298,6 +298,7 @@ fun MapScreen(vm: MapViewModel = viewModel()) {
                 Text(
                     "この地図は、はじめは真っ白です。\n\n" +
                         "・「道をつくる」を押して出かけると、通ったところが道になります（画面を消していても記録します）。\n" +
+                        "・同じところを何度も通ると、その道はだんだん濃くなります。\n" +
                         "・地図を長押しすると、そこに目印を書きこめます。目印をタップすると名前の変更・削除ができます。\n" +
                         "・2本指で拡大・縮小、ダブルタップで拡大。\n" +
                         "・記録は端末の中だけに保存されます。メニューからGPXで書き出せます。"

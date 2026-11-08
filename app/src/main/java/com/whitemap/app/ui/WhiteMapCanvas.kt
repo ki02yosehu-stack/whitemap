@@ -33,22 +33,32 @@ import com.whitemap.app.util.RoadNetwork
 import com.whitemap.app.util.TrackGeometry
 import com.whitemap.app.util.WorldPoint
 import kotlin.math.floor
-import kotlin.math.max
 
 object MapColors {
     val Paper = Color(0xFFFFFFFF)
     val Grid = Color(0xFFF4F4F2)
-    val RoadCasing = Color(0xFFA8A8A8)
-    val RoadFill = Color(0xFFFFFFFF)
     val Ink = Color(0xFF222222)
     val InkSoft = Color(0xFF555555)
     val Me = Color(0xFF2B6CB0)
     val MeHalo = Color(0x222B6CB0)
 }
 
-/** 道路の太さ（実寸、メートル）。縮小しても細くなりすぎないよう最小幅を設ける。 */
-private const val ROAD_FILL_M = 5f
-private const val ROAD_CASING_M = 8f
+/**
+ * 道の見た目。黒の単線で、同じところを通った回数が多いほど濃く・少し太くなる。
+ * index = 通った回数 - 1（それ以上は最後の値）。
+ */
+object RoadStyle {
+    val colors = listOf(
+        Color(0xFF5A5A5A), // 1回
+        Color(0xFF383838), // 2回
+        Color(0xFF1C1C1C), // 3回
+        Color(0xFF000000), // 4回以上
+    )
+    /** 線の太さ（dp）。拡大・縮小しても画面上の太さは変わらない。 */
+    val widthsDp = listOf(2.0f, 2.4f, 2.8f, 3.2f)
+
+    fun index(level: Int): Int = (level - 1).coerceIn(0, colors.lastIndex)
+}
 
 @Composable
 fun WhiteMapCanvas(
@@ -62,17 +72,24 @@ fun WhiteMapCanvas(
     onLandmarkTap: (LandmarkEntity) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val roadPath = remember(roads) {
-        Path().apply {
-            for (seg in roads.segments) {
-                moveTo(seg[0], seg[1])
-                var i = 2
-                while (i < seg.size) {
-                    lineTo(seg[i], seg[i + 1])
-                    i += 2
+    // 濃さごとに 1 本の Path にまとめる（薄い順に並ぶ）
+    val roadPaths = remember(roads) {
+        roads.strokes
+            .groupBy { RoadStyle.index(it.level) }
+            .toSortedMap()
+            .map { (styleIndex, strokes) ->
+                styleIndex to Path().apply {
+                    for (stroke in strokes) {
+                        val c = stroke.coords
+                        moveTo(c[0], c[1])
+                        var i = 2
+                        while (i < c.size) {
+                            lineTo(c[i], c[i + 1])
+                            i += 2
+                        }
+                    }
                 }
             }
-        }
     }
     val textMeasurer = rememberTextMeasurer()
     val labelStyle = remember {
@@ -121,23 +138,24 @@ fun WhiteMapCanvas(
         drawRect(MapColors.Paper)
         drawGrid(camera)
 
-        // --- 道 ---
+        // --- 道（黒の単線。何度も通ったところほど濃く） ---
         val s = camera.scale
-        val fillPx = max(ROAD_FILL_M * s, 2.5.dp.toPx())
-        val casingPx = max(ROAD_CASING_M * s, fillPx + 2.dp.toPx())
+        val roadWidthsPx = RoadStyle.widthsDp.map { it.dp.toPx() }
         withTransform({
             translate(size.width / 2, size.height / 2)
             scale(s, s, pivot = Offset.Zero)
             translate(-camera.x.toFloat(), -camera.y.toFloat())
         }) {
-            drawPath(
-                roadPath, MapColors.RoadCasing,
-                style = Stroke(width = casingPx / s, cap = StrokeCap.Round, join = StrokeJoin.Round),
-            )
-            drawPath(
-                roadPath, MapColors.RoadFill,
-                style = Stroke(width = fillPx / s, cap = StrokeCap.Round, join = StrokeJoin.Round),
-            )
+            for ((styleIndex, path) in roadPaths) {
+                drawPath(
+                    path, RoadStyle.colors[styleIndex],
+                    style = Stroke(
+                        width = roadWidthsPx[styleIndex] / s,
+                        cap = StrokeCap.Round,
+                        join = StrokeJoin.Round,
+                    ),
+                )
+            }
         }
 
         if (projection == null) return@Canvas
