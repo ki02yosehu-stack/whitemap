@@ -18,13 +18,15 @@
 
 ## APK の入手方法
 
-### GitHub Actions から（Android Studio 不要）
-1. このリポジトリの **Actions** タブ → 最新の「Build APK」を開く
-2. 下部の **Artifacts** から `whitemap-apk` をダウンロード
-3. 中の `app-release.apk` をスマホに送ってインストール（「提供元不明のアプリ」の許可が必要です）
+### ダウンロード（Android Studio 不要）
+スマホのブラウザで次のリンクを開くと、最新の APK がそのままダウンロードされます（GitHub へのログインは不要です）。
+
+**https://github.com/ki02yosehu-stack/whitemap/releases/latest/download/whitemap.apk**
+
+ダウンロードした `whitemap.apk` を開いてインストールします（「提供元不明のアプリ」の許可が必要です）。過去のビルドは [Releases](https://github.com/ki02yosehu-stack/whitemap/releases) にあります。
 
 ### 更新のしかた
-新しい `app-release.apk` をそのままインストールすれば上書き更新され、記録は残ります。念のため、更新の前にメニューの「GPXで書き出す」で控えを取っておくと安心です。
+上のリンクから新しい `whitemap.apk` をそのままインストールすれば上書き更新され、記録は残ります。念のため、更新の前にメニューの「GPXで書き出す」で控えを取っておくと安心です。
 
 > **バージョン 0.1.0 から更新するときだけ**は上書きできません（当時はビルドのたびに署名が変わっていたため）。記録を残すには次の順で:
 > 1. いまのアプリで、メニュー →「GPXで書き出す」でファイルを保存する

@@ -5,6 +5,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Releases に APK を置くために必要
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -38,3 +42,18 @@ jobs:
         with:
           name: rendered-screens
           path: app/build/outputs/render/
+
+      # ログインなし・zip なしで落とせる直接リンクを作る:
+      #   https://github.com/<owner>/<repo>/releases/latest/download/whitemap.apk
+      - name: Publish APK as a release
+        if: github.event_name == 'push' && github.ref_name == github.event.repository.default_branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          cp app/build/outputs/apk/release/app-release.apk whitemap.apk
+          gh release create "build-${{ github.run_number }}" whitemap.apk \
+            --target "${{ github.sha }}" \
+            --title "白紙の地図 ${version} (build ${{ github.run_number }})" \
+            --notes "whitemap.apk をスマホでダウンロードして開くとインストールできます。バージョン 0.2.0 以降が入っていれば、そのまま上書き更新され、記録は残ります。" \
+            --latest
