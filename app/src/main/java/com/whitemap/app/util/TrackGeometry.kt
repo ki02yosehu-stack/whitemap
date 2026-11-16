@@ -28,8 +28,14 @@ data class RoadNetwork(
 }
 
 object TrackGeometry {
-    /** これ以上離れた点同士は線でつながない（GPSが途切れた、など）。 */
+    /** これ以上離れた点同士は、時間も空いていれば線でつながない（GPSが長く途切れた、など）。 */
     const val MAX_JOIN_DISTANCE_M = 300.0
+
+    /**
+     * この時間以内に続けて取れた点なら、離れていてもつなぐ。
+     * 電車や車では数秒で数百 m 進むので、距離だけで区切ると道がバラバラの点になってしまう。
+     */
+    const val MAX_JOIN_GAP_MS = 120_000L
 
     /** これより近い点は描画上まとめる。 */
     const val MIN_STEP_M = 1.0
@@ -60,7 +66,7 @@ object TrackGeometry {
             val last = prev
             if (last != null) {
                 val d = Geo.distanceMeters(last.lat, last.lon, p.lat, p.lon)
-                if (last.trackId != p.trackId || d > MAX_JOIN_DISTANCE_M) {
+                if (last.trackId != p.trackId || !isContinuous(d, p.time - last.time)) {
                     runs.add(current)
                     current = ArrayList()
                 } else if (d < MIN_STEP_M) {
@@ -155,6 +161,13 @@ object TrackGeometry {
         // 薄い線を先に、濃い線を後から描けるよう並べておく
         strokes.sortBy { it.level }
         return RoadNetwork(strokes, total)
+    }
+
+    /** 2 点を 1 本の線としてつないでよいか。近いか、短い時間で（ありえる速さで）移動していればつなぐ。 */
+    private fun isContinuous(distanceM: Double, elapsedMs: Long): Boolean {
+        if (distanceM <= MAX_JOIN_DISTANCE_M) return true
+        if (elapsedMs !in 1..MAX_JOIN_GAP_MS) return false
+        return distanceM / (elapsedMs / 1000.0) < Geo.MAX_PLAUSIBLE_SPEED_MPS
     }
 
     /** 道の向きを区別する数（180° を [ORIENTATION_BINS] 等分。行きと帰りは同じ向き扱い）。 */

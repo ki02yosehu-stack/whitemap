@@ -18,7 +18,6 @@ import com.whitemap.app.R
 import com.whitemap.app.WhiteMapApp
 import com.whitemap.app.data.PointEntity
 import com.whitemap.app.data.TrackEntity
-import com.whitemap.app.util.Geo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -40,7 +39,7 @@ class TrackingService : Service() {
     private val writeLock = Mutex()
     private var stopUpdates: (() -> Unit)? = null
     private var trackId: Long? = null
-    private var lastAccepted: Location? = null
+    private val filter = LocationFilter()
 
     private val dao by lazy { (application as WhiteMapApp).database.mapDao() }
 
@@ -103,7 +102,7 @@ class TrackingService : Service() {
 
     private fun startTracking() {
         _isRecording.value = true
-        lastAccepted = null
+        filter.reset()
         scope.launch {
             val id = dao.insertTrack(TrackEntity(startTime = System.currentTimeMillis()))
             trackId = id
@@ -121,8 +120,14 @@ class TrackingService : Service() {
     private fun onLocation(location: Location) {
         CurrentLocation.update(location)
         val id = trackId ?: return
-        if (!accept(location)) return
-        lastAccepted = location
+        val fix = LocationFilter.Fix(
+            lat = location.latitude,
+            lon = location.longitude,
+            time = location.time,
+            accuracy = if (location.hasAccuracy()) location.accuracy else null,
+            speed = if (location.hasSpeed()) location.speed else null,
+        )
+        if (!filter.accept(fix)) return
         val point = PointEntity(
             trackId = id,
             lat = location.latitude,
@@ -131,19 +136,6 @@ class TrackingService : Service() {
             accuracy = location.accuracy,
         )
         scope.launch { writeLock.withLock { dao.insertPoint(point) } }
-    }
-
-    /** 精度の悪い点・ありえない跳びを捨てる。 */
-    private fun accept(location: Location): Boolean {
-        if (location.hasAccuracy() && location.accuracy > MAX_ACCURACY_M) return false
-        // 起動直後のキャッシュされた古い位置は使わない
-        if (System.currentTimeMillis() - location.time > 60_000) return false
-        val last = lastAccepted ?: return true
-        if (location.time <= last.time) return false
-        val d = Geo.distanceMeters(last.latitude, last.longitude, location.latitude, location.longitude)
-        if (d < MIN_STEP_M) return false
-        val speed = d / ((location.time - last.time) / 1000.0)
-        return speed < MAX_SPEED_MPS
     }
 
     private fun stopTracking() {
@@ -173,10 +165,6 @@ class TrackingService : Service() {
         private const val CHANNEL_ID = "tracking"
         private const val NOTIFICATION_ID = 1
         private const val ACTION_STOP = "com.whitemap.app.STOP"
-
-        private const val MAX_ACCURACY_M = 40f
-        private const val MIN_STEP_M = 3.0
-        private const val MAX_SPEED_MPS = 120.0 // これ以上速い移動は GPS の誤差とみなす
 
         private val _isRecording = MutableStateFlow(false)
         val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()

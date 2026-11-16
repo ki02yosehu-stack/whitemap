@@ -9,6 +9,9 @@ import kotlin.math.sqrt
 object Geo {
     private const val EARTH_RADIUS_M = 6_371_008.8
 
+    /** これ以上速い移動（時速 432km）は GPS の誤差とみなす。 */
+    const val MAX_PLAUSIBLE_SPEED_MPS = 120.0
+
     /** 2点間の距離（メートル、Haversine）。 */
     fun distanceMeters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
         val dLat = Math.toRadians(lat2 - lat1)
