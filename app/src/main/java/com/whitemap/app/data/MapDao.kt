@@ -27,6 +27,12 @@ interface MapDao {
     @Insert
     suspend fun insertPoint(point: PointEntity)
 
+    @Insert
+    suspend fun insertPoints(points: List<PointEntity>)
+
+    @Query("SELECT COUNT(*) FROM points WHERE time BETWEEN :fromTime AND :toTime AND lat = :lat AND lon = :lon")
+    suspend fun countPointsNear(fromTime: Long, toTime: Long, lat: Double, lon: Double): Int
+
     @Query("SELECT * FROM points ORDER BY trackId, time, id")
     fun observePoints(): Flow<List<PointEntity>>
 
@@ -45,6 +51,9 @@ interface MapDao {
 
     @Insert
     suspend fun insertLandmark(landmark: LandmarkEntity): Long
+
+    @Query("SELECT COUNT(*) FROM landmarks WHERE lat = :lat AND lon = :lon AND name = :name")
+    suspend fun countLandmarksAt(lat: Double, lon: Double, name: String): Int
 
     @Update
     suspend fun updateLandmark(landmark: LandmarkEntity)

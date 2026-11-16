@@ -141,6 +141,22 @@ fun MapScreen(vm: MapViewModel = viewModel()) {
         }
     }
 
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) scope.launch {
+            val result = vm.importGpx(uri)
+            snackbar.showSnackbar(
+                when {
+                    result == null -> "読みこめませんでした（GPXファイルではないようです）"
+                    result.trips == 0 && result.landmarks == 0 && result.skipped > 0 ->
+                        "すべて、すでに地図にあります"
+                    result.trips == 0 && result.landmarks == 0 -> "道も目印も入っていないファイルでした"
+                    else -> "旅 ${result.trips} 回・目印 ${result.landmarks} 個を読みこみました" +
+                        if (result.skipped > 0) "（すでにある ${result.skipped} 件は飛ばしました）" else ""
+                }
+            )
+        }
+    }
+
     Box(Modifier.fillMaxSize().background(MapColors.Paper)) {
         WhiteMapCanvas(
             camera = camera,
@@ -196,6 +212,11 @@ fun MapScreen(vm: MapViewModel = viewModel()) {
                         DropdownMenuItem(
                             text = { Text("GPXで書き出す") },
                             onClick = { menuOpen = false; exportLauncher.launch("whitemap.gpx") },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("GPXから読みこむ") },
+                            // GPX は端末によってファイルの種類がうまく判別されないので、すべてのファイルから選べるようにする
+                            onClick = { menuOpen = false; importLauncher.launch(arrayOf("*/*")) },
                         )
                         DropdownMenuItem(
                             text = { Text("地図をまっさらにする") },
@@ -291,6 +312,9 @@ fun MapScreen(vm: MapViewModel = viewModel()) {
         )
     }
     if (showAbout) {
+        val versionName = remember {
+            runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "?"
+        }
         AlertDialog(
             onDismissRequest = { showAbout = false },
             title = { Text("白紙の地図") },
@@ -301,7 +325,8 @@ fun MapScreen(vm: MapViewModel = viewModel()) {
                         "・同じところを何度も通ると、その道はだんだん濃くなります。\n" +
                         "・地図を長押しすると、そこに目印を書きこめます。目印をタップすると名前の変更・削除ができます。\n" +
                         "・2本指で拡大・縮小、ダブルタップで拡大。\n" +
-                        "・記録は端末の中だけに保存されます。メニューからGPXで書き出せます。"
+                        "・記録は端末の中だけに保存されます。メニューの「GPXで書き出す」で控えを取り、「GPXから読みこむ」で戻せます（機種変更や入れ直しのときに）。\n\n" +
+                        "バージョン $versionName"
                 )
             },
             confirmButton = { TextButton(onClick = { showAbout = false }) { Text("とじる") } },

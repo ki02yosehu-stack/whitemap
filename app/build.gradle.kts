@@ -13,11 +13,26 @@ android {
         applicationId = "com.whitemap.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
+    }
+
+    signingConfigs {
+        // どこでビルドしても同じ署名になるよう、鍵をリポジトリに入れてある。
+        // 署名が変わると上書きインストールできず、入れ直しで記録が消えてしまうため。
+        // この鍵は公開されているので、Google Play などで配布するときは非公開の鍵に差し替えること。
+        create("shared") {
+            storeFile = file("whitemap.keystore")
+            storePassword = "whitemap"
+            keyAlias = "whitemap"
+            keyPassword = "whitemap"
+        }
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("shared")
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -25,8 +40,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // 署名鍵を用意するまではデバッグ鍵で署名（手元の端末にインストールできるように）
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("shared")
         }
     }
     compileOptions {

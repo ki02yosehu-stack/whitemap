@@ -5,6 +5,8 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.whitemap.app.WhiteMapApp
+import com.whitemap.app.data.GpxImporter
+import com.whitemap.app.data.ImportResult
 import com.whitemap.app.data.LandmarkEntity
 import com.whitemap.app.data.SavedCamera
 import com.whitemap.app.location.CurrentLocation
@@ -105,5 +107,16 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                 GpxWriter.write(w, points, landmarks)
             } ?: error("cannot open $uri")
         }.isSuccess
+    }
+
+    /** GPX ファイルの道と目印を地図に足す。読めなかったら null。 */
+    suspend fun importGpx(uri: Uri): ImportResult? = withContext(Dispatchers.IO) {
+        runCatching {
+            val result = app.contentResolver.openInputStream(uri)?.use { GpxImporter(app.database).import(it) }
+                ?: error("cannot open $uri")
+            // 入れ直した直後など、地図の基準点がまだないときは読みこんだ場所を基準にする
+            result.firstPoint?.let { setOrigin(it.first, it.second) }
+            result
+        }.getOrNull()
     }
 }
